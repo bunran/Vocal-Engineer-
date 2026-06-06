@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KaraokeFlow — Live Session Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080810;
+  --performer-bg: #0d0d18;
+  --engineer-bg: #0a1008;
+  --gold: #e8b84b;
+  --green: #4be87a;
+  --red: #e84b4b;
+  --amber: #ff8c42;
+  --blue: #4b9ee8;
+  --white: #f0ede8;
+  --muted: #555566;
+  --border-p: #1a1a2e;
+  --border-e: #0e1e0e;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --display: 'Bebas Neue', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--sans);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid #111122;
+  background: #050508;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.topbar-brand {
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+}
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rec-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: blink 1s ease infinite;
+}
+
+.rec-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--red);
+}
+
+.timer {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--white);
+  letter-spacing: 0.1em;
+}
+
+.topbar-right {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+/* ── SPLIT LAYOUT ── */
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+  overflow: hidden;
+  gap: 1px;
+  background: #111;
+}
+
+/* ── PANEL BASE ── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel-performer { background: var(--performer-bg); }
+.panel-engineer  { background: var(--engineer-bg); }
+
+.panel-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.panel-performer .panel-header { border-color: var(--border-p); }
+.panel-engineer  .panel-header { border-color: var(--border-e); }
+
+.panel-role {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+}
+
+.panel-performer .panel-role { color: #7070cc; }
+.panel-engineer  .panel-role { color: #50aa60; }
+
+.panel-status {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  letter-spacing: 0.1em;
+}
+
+.panel-performer .panel-status {
+  background: #1a1a2e;
+  color: #7070cc;
+  border: 1px solid #2a2a4e;
+}
+
+.panel-engineer .panel-status {
+  background: #0a1e0a;
+  color: #50aa60;
+  border: 1px solid #1a3a1a;
+}
+
+/* ── PANEL BODY ── */
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+/* ── SONG DISPLAY (PERFORMER) ── */
+.song-display {
+  background: #0f0f1e;
+  border: 1px solid var(--border-p);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.song-title {
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: 0.05em;
+  color: var(--white);
+  margin-bottom: 4px;
+}
+
+.song-artist {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.lyric-line {
+  font-size: 15px;
+  color: var(--white);
+  line-height: 1.7;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.lyric-line .active-word {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+/* Progress bar */
+.progress-wrap {
+  margin-top: 12px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  height: 3px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #7070cc, var(--gold));
+  border-radius: 4px;
+  transition: width 1s linear;
+}
+
+/* ── PERFORMER CONTROLS ── */
+.performer-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.p-btn {
+  background: #111128;
+  border: 1px solid var(--border-p);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.p-btn:hover {
+  border-color: #4040aa;
+  background: #18183a;
+}
+
+.p-btn.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: #1a1500;
+}
+
+.p-btn.danger {
+  border-color: #3a1a1a;
+  color: #cc5555;
+}
+
+.p-btn.danger:hover {
+  border-color: var(--red);
+  background: #1e0808;
+}
+
+/* ── CHAT / EVENTS ── */
+.event-feed {
+  flex: 1;
+  background: #0c0c1a;
+  border: 1px solid var(--border-p);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+}
+
+.event-feed-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-p);
+  text-transform: uppercase;
+}
+
+.event-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.event-list::-webkit-scrollbar { width: 2px; }
+.event-list::-webkit-scrollbar-thumb { background: #222; }
+
+.event-item {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 4px 0;
+  border-bottom: 1px solid #0f0f1a;
+  animation: slideIn 0.3s ease;
+}
+
+.event-item .ts { color: var(--muted); margin-right: 8px; }
+.event-item.info  .msg { color: #8888cc; }
+.event-item.warn  .msg { color: var(--amber); }
+.event-item.ok    .msg { color: var(--green); }
+.event-item.alert .msg { color: var(--red); }
+.event-item.gold  .msg { color: var(--gold); }
+
+/* ── ENGINEER METERS ── */
+.meters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.meter-card {
+  background: #0c160c;
+  border: 1px solid var(--border-e);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.meter-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: #406040;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.meter-value {
+  font-family: var(--display);
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.meter-bar-wrap {
+  background: #0a0f0a;
+  border-radius: 3px;
+  height: 4px;
+  overflow: hidden;
+}
+
+.meter-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background 0.3s;
+}
+
+/* ── VU METER ── */
+.vu-wrap {
+  background: #0c160c;
+  border: 1px solid var(--border-e);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.vu-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: #406040;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.vu-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 48px;
+}
+
+.vu-bar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.1s ease, background 0.1s;
+  min-height: 2px;
+}
+
+/* ── ENGINEER CONTROLS ── */
+.eng-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.eng-knob-wrap {
+  background: #0c160c;
+  border: 1px solid var(--border-e);
+  border-radius: 8px;
+  padding: 12px 10px;
+  text-align: center;
+}
+
+.eng-knob-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #406040;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.knob-display {
+  font-family: var(--display);
+  font-size: 20px;
+  color: var(--green);
+  margin-bottom: 6px;
+}
+
+.knob-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: #1a2a1a;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.knob-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.knob-slider:hover::-webkit-slider-thumb { background: var(--gold); }
+
+/* ── ENGINEER EVENT FEED ── */
+.eng-feed {
+  background: #080e08;
+  border: 1px solid var(--border-e);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
+  flex: 1;
+}
+
+.eng-feed-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: #406040;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-e);
+  text-transform: uppercase;
+}
+
+.eng-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eng-list::-webkit-scrollbar { width: 2px; }
+.eng-list::-webkit-scrollbar-thumb { background: #1a2a1a; }
+
+.eng-item {
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
+  animation: slideIn 0.3s ease;
+}
+
+.eng-item .ts { color: #304030; margin-right: 6px; }
+.eng-item.ok   .msg { color: #50aa60; }
+.eng-item.warn .msg { color: var(--amber); }
+.eng-item.fix  .msg { color: var(--blue); }
+.eng-item.alert .msg { color: var(--red); }
+
+/* ── BOTTOM BAR ── */
+.bottombar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #111;
+  flex-shrink: 0;
+  gap: 1px;
+  background: #111;
+}
+
+.bottom-panel {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bottom-panel-p { background: #09091a; }
+.bottom-panel-e { background: #080e08; }
+
+.action-btn {
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+
+.btn-start {
+  background: #1a1a3a;
+  border-color: #4040aa;
+  color: #aaaaff;
+}
+.btn-start:hover { background: #22225a; }
+
+.btn-issue {
+  background: #1a1008;
+  border-color: #aa7040;
+  color: #ffaa60;
+}
+.btn-issue:hover { background: #221408; }
+
+.btn-eng-ok {
+  background: #0a1e0a;
+  border-color: #2a6a2a;
+  color: #60cc60;
+}
+.btn-eng-ok:hover { background: #0e260e; }
+
+.btn-eng-fix {
+  background: #08101e;
+  border-color: #2a4a8a;
+  color: #60aaff;
+}
+.btn-eng-fix:hover { background: #0c1626; }
+
+.btn-eng-alert {
+  background: #1e0808;
+  border-color: #8a2a2a;
+  color: #ff6060;
+}
+.btn-eng-alert:hover { background: #260e0e; }
+
+.bottom-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── SCROLLBAR ── */
+* { scrollbar-width: thin; scrollbar-color: #222 transparent; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">KARAOKEFLOW</div>
+  <div class="topbar-center">
+    <div class="rec-dot"></div>
+    <div class="rec-label">LIVE</div>
+    <div class="timer" id="timer">00:00</div>
+  </div>
+  <div class="topbar-right" id="session-label">SESSION READY</div>
+</div>
+
+<!-- SPLIT SCREEN -->
+<div class="split">
+
+  <!-- ── PERFORMER PANEL ── -->
+  <div class="panel panel-performer">
+    <div class="panel-header">
+      <div class="panel-role">PERFORMER VIEW</div>
+      <div class="panel-status" id="p-status">STANDBY</div>
+    </div>
+    <div class="panel-body">
+
+      <!-- Song display -->
+      <div class="song-display">
+        <div class="song-title" id="song-title">— SELECT A SONG —</div>
+        <div class="song-artist" id="song-artist">Press Start to begin your segment</div>
+        <div class="lyric-line" id="lyric-display">Ready when you are...</div>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Performer controls -->
+      <div class="performer-controls">
+        <button class="p-btn" onclick="performerAction('start')">▶ Start My Segment</button>
+        <button class="p-btn" onclick="performerAction('song')">🎵 Change Song</button>
+        <button class="p-btn" onclick="performerAction('louder')">🔊 Too Quiet</button>
+        <button class="p-btn" onclick="performerAction('effects')">✨ More Reverb</button>
+        <button class="p-btn" onclick="performerAction('pitch')">🎤 Pitch Off?</button>
+        <button class="p-btn danger" onclick="performerAction('issue')">⚠ Audio Issue</button>
+      </div>
+
+      <!-- Performer event feed -->
+      <div class="event-feed">
+        <div class="event-feed-label">Stage Feed</div>
+        <div class="event-list" id="p-feed"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── ENGINEER PANEL ── -->
+  <div class="panel panel-engineer">
+    <div class="panel-header">
+      <div class="panel-role">ENGINEER VIEW — BUN</div>
+      <div class="panel-status" id="e-status" style="background:#0a1e0a;color:#50aa60;border-color:#1a3a1a;">MONITORING</div>
+    </div>
+    <div class="panel-body">
+
+      <!-- Meters -->
+      <div class="meters-grid">
+        <div class="meter-card">
+          <div class="meter-label">Output Level</div>
+          <div class="meter-value" id="m-output" style="color:var(--green)">—</div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="bar-output" style="width:0%;background:var(--green)"></div>
+          </div>
+        </div>
+        <div class="meter-card">
+          <div class="meter-label">Pitch Correction</div>
+          <div class="meter-value" id="m-pitch" style="color:var(--blue)">—</div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="bar-pitch" style="width:0%;background:var(--blue)"></div>
+          </div>
+        </div>
+        <div class="meter-card">
+          <div class="meter-label">Reverb Wet</div>
+          <div class="meter-value" id="m-reverb" style="color:var(--gold)">—</div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="bar-reverb" style="width:0%;background:var(--gold)"></div>
+          </div>
+        </div>
+        <div class="meter-card">
+          <div class="meter-label">Broadcast Feed</div>
+          <div class="meter-value" id="m-broadcast" style="color:var(--amber)">—</div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="bar-broadcast" style="width:0%;background:var(--amber)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VU Meter -->
+      <div class="vu-wrap">
+        <div class="vu-label">
+          <span>VU MONITOR</span>
+          <span id="vu-db" style="color:var(--green)">— dB</span>
+        </div>
+        <div class="vu-bars" id="vu-bars"></div>
+      </div>
+
+      <!-- Engineer controls -->
+      <div class="eng-controls">
+        <div class="eng-knob-wrap">
+          <div class="eng-knob-label">Gain</div>
+          <div class="knob-display" id="k-gain">0 dB</div>
+          <input type="range" class="knob-slider" min="-12" max="12" value="0" oninput="knobChange('gain', this.value)">
+        </div>
+        <div class="eng-knob-wrap">
+          <div class="eng-knob-label">Pitch</div>
+          <div class="knob-display" id="k-pitch">50%</div>
+          <input type="range" class="knob-slider" min="0" max="100" value="50" oninput="knobChange('pitch', this.value)">
+        </div>
+        <div class="eng-knob-wrap">
+          <div class="eng-knob-label">Reverb</div>
+          <div class="knob-display" id="k-reverb">30%</div>
+          <input type="range" class="knob-slider" min="0" max="100" value="30" oninput="knobChange('reverb', this.value)">
+        </div>
+      </div>
+
+      <!-- Engineer feed -->
+      <div class="eng-feed">
+        <div class="eng-feed-label">Engineer Monitor Log</div>
+        <div class="eng-list" id="e-feed"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottombar">
+  <div class="bottom-panel bottom-panel-p">
+    <span class="bottom-label">Performer:</span>
+    <button class="action-btn btn-start" onclick="performerAction('start')">Go Live</button>
+    <button class="action-btn btn-issue" onclick="performerAction('issue')">Report Issue</button>
+  </div>
+  <div class="bottom-panel bottom-panel-e">
+    <span class="bottom-label">Engineer:</span>
+    <button class="action-btn btn-eng-ok" onclick="engAction('ok')">All Good</button>
+    <button class="action-btn btn-eng-fix" onclick="engAction('fix')">Apply Fix</button>
+    <button class="action-btn btn-eng-alert" onclick="engAction('alert')">Flag Alert</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let running = false;
+let startTime = null;
+let timerInterval = null;
+let vuInterval = null;
+let meterInterval = null;
+let lyricInterval = null;
+let progressVal = 0;
+let lyricIdx = 0;
+
+const songs = [
+  {
+    title: "SNAE KUN KHMER",
+    artist: "CMG Bun",
+    lyrics: [
+      "នៅក្នុងដួងចិត្ត ស្រលាញ់គ្នា...",
+      "Together we rise, together we shine...",
+      "ខ្មែរ ខ្មែរ ជាមោទនភាព...",
+      "Our love echoes through the ages...",
+      "ដូចព្រះអាទិត្យ ពណ៌ក្រហម...",
+      "Like the sun rising over Angkor...",
+      "Forever bound by heart and soul...",
+      "ស្រលាញ់គ្នា រហូតដល់ស្លាប់...",
+    ]
+  },
+  {
+    title: "LATE NIGHT VIBE",
+    artist: "CMG Bun",
+    lyrics: [
+      "Lights down low, mic turned up high...",
+      "Every note I sing feels like the sky...",
+      "Can't stop now, the crowd is alive...",
+      "This is my moment, I'm gonna thrive...",
+      "Verse two, let the bass drop low...",
+      "Feel the rhythm, let the good times flow...",
+      "Bridge coming in, take it to the top...",
+      "This karaoke night will never stop...",
+    ]
+  },
+  {
+    title: "ANGKOR DREAMS",
+    artist: "CMG Bun",
+    lyrics: [
+      "Stone temples rising through the mist...",
+      "Ancient voices, impossible to resist...",
+      "ជំនាន់មុន ទុកអ្វីជូន...",
+      "What the ancestors left, we carry on...",
+      "Bayon smiles watching from above...",
+      "Every face a reminder of our love...",
+      "ខ្មែរ ខ្មែរ ជួបគ្នានៅទីនេះ...",
+      "We find each other here, always here...",
+    ]
+  }
+];
+
+let currentSong = null;
+let songIdx = 0;
+
+// ── VU BARS INIT ──
+function initVU() {
+  const wrap = document.getElementById('vu-bars');
+  wrap.innerHTML = '';
+  for (let i = 0; i < 32; i++) {
+    const b = document.createElement('div');
+    b.className = 'vu-bar';
+    b.id = 'vu-' + i;
+    b.style.background = i < 22 ? '#2a6a3a' : i < 28 ? '#aaaa30' : '#aa3030';
+    wrap.appendChild(b);
+  }
+}
+
+// ── TIMER ──
+function startTimer() {
+  startTime = Date.now();
+  timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - startTime) / 1000);
+    const m = Math.floor(s / 60);
+    document.getElementById('timer').textContent =
+      String(m).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+  }, 1000);
+}
+
+// ── ADD FEED EVENTS ──
+function addPerformerEvent(type, msg) {
+  const feed = document.getElementById('p-feed');
+  const now = new Date();
+  const ts = String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+  const div = document.createElement('div');
+  div.className = 'event-item ' + type;
+  div.innerHTML = `<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function addEngEvent(type, msg) {
+  const feed = document.getElementById('e-feed');
+  const now = new Date();
+  const ts = String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+  const div = document.createElement('div');
+  div.className = 'eng-item ' + type;
+  div.innerHTML = `<span class="ts">${ts}</span><span class="msg">${msg}</span>`;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+// ── VU ANIMATION ──
+function animateVU() {
+  const base = running ? 0.6 : 0.05;
+  for (let i = 0; i < 32; i++) {
+    const bar = document.getElementById('vu-' + i);
+    if (!bar) continue;
+    const threshold = (base + Math.random() * 0.3) * 32;
+    const h = i < threshold ? (4 + Math.random() * 44) : 2;
+    bar.style.height = h + 'px';
+    bar.style.opacity = i < threshold ? 1 : 0.15;
+  }
+  const db = running ? (-18 + Math.random() * 12).toFixed(1) : '—';
+  document.getElementById('vu-db').textContent = running ? db + ' dB' : '— dB';
+  document.getElementById('vu-db').style.color = running
+    ? (parseFloat(db) > -6 ? 'var(--amber)' : 'var(--green)') : 'var(--muted)';
+}
+
+// ── METERS ANIMATION ──
+function animateMeters() {
+  if (!running) return;
+  const o = (55 + Math.random() * 35).toFixed(0);
+  const p = (40 + Math.random() * 30).toFixed(0);
+  const r = (20 + Math.random() * 20).toFixed(0);
+  const b = (60 + Math.random() * 28).toFixed(0);
+
+  document.getElementById('m-output').textContent = o + '%';
+  document.getElementById('bar-output').style.width = o + '%';
+  document.getElementById('bar-output').style.background =
+    o > 85 ? 'var(--red)' : o > 70 ? 'var(--amber)' : 'var(--green)';
+
+  document.getElementById('m-pitch').textContent = p + '%';
+  document.getElementById('bar-pitch').style.width = p + '%';
+
+  document.getElementById('m-reverb').textContent = r + '%';
+  document.getElementById('bar-reverb').style.width = r + '%';
+
+  document.getElementById('m-broadcast').textContent = b + '%';
+  document.getElementById('bar-broadcast').style.width = b + '%';
+  document.getElementById('bar-broadcast').style.background =
+    b > 88 ? 'var(--red)' : 'var(--amber)';
+}
+
+// ── LYRICS ──
+function nextLyric() {
+  if (!currentSong) return;
+  const line = currentSong.lyrics[lyricIdx % currentSong.lyrics.length];
+  document.getElementById('lyric-display').textContent = line;
+  lyricIdx++;
+  progressVal = Math.min(100, (lyricIdx / currentSong.lyrics.length) * 100);
+  document.getElementById('progress-bar').style.width = progressVal + '%';
+  if (lyricIdx >= currentSong.lyrics.length) {
+    clearInterval(lyricInterval);
+    document.getElementById('lyric-display').textContent = '🎤 Segment complete!';
+    document.getElementById('progress-bar').style.width = '100%';
+    addPerformerEvent('gold', 'Segment finished — great performance!');
+    addEngEvent('ok', 'Segment end detected — fading output smoothly');
+  }
+}
+
+// ── PERFORMER ACTIONS ──
+function performerAction(action) {
+  if (action === 'start') {
+    if (!running) {
+      running = true;
+      startTimer();
+      songIdx = songIdx % songs.length;
+      currentSong = songs[songIdx];
+      lyricIdx = 0;
+      progressVal = 0;
+      document.getElementById('song-title').textContent = currentSong.title;
+      document.getElementById('song-artist').textContent = currentSong.artist;
+      document.getElementById('progress-bar').style.width = '0%';
+      document.getElementById('p-status').textContent = 'ON AIR';
+      document.getElementById('p-status').style.color = '#e8b84b';
+      document.getElementById('p-status').style.borderColor = '#6a5020';
+      document.getElementById('session-label').textContent = 'SESSION LIVE';
+      addPerformerEvent('ok', 'Your segment is live — you\'re on!');
+      addEngEvent('ok', 'Performer segment started — monitoring active');
+      addEngEvent('fix', 'Auto-leveling engaged, pitch correction on');
+      lyricInterval = setInterval(nextLyric, 3200);
+      nextLyric();
+    }
+    return;
+  }
+  if (!running) { addPerformerEvent('warn', 'Start your segment first!'); return; }
+
+  if (action === 'song') {
+    songIdx = (songIdx + 1) % songs.length;
+    currentSong = songs[songIdx];
+    lyricIdx = 0;
+    clearInterval(lyricInterval);
+    document.getElementById('song-title').textContent = currentSong.title;
+    document.getElementById('song-artist').textContent = currentSong.artist;
+    document.getElementById('progress-bar').style.width = '0%';
+    addPerformerEvent('info', 'Song changed to: ' + currentSong.title);
+    addEngEvent('fix', 'Song change detected — resetting vocal chain');
+    lyricInterval = setInterval(nextLyric, 3200);
+    nextLyric();
+  } else if (action === 'louder') {
+    addPerformerEvent('warn', 'Signaling engineer: need more volume');
+    setTimeout(() => addEngEvent('fix', 'Performer requesting more volume — boosting gain +3dB'), 600);
+    setTimeout(() => addPerformerEvent('ok', 'Engineer adjusted your level — better?'), 1800);
+  } else if (action === 'effects') {
+    addPerformerEvent('info', 'Requesting more reverb effect');
+    setTimeout(() => addEngEvent('fix', 'Reverb request received — pushing wet mix to 45%'), 500);
+    setTimeout(() => addPerformerEvent('ok', 'Reverb dialed up — sounds warmer now'), 1600);
+  } else if (action === 'pitch') {
+    addPerformerEvent('warn', 'Pitch feels off — flagging engineer');
+    setTimeout(() => addEngEvent('warn', 'Pitch correction flag from performer — recalibrating key'), 500);
+    setTimeout(() => addEngEvent('fix', 'Key lock re-applied — tracking stable'), 1200);
+    setTimeout(() => addPerformerEvent('ok', 'Pitch correction recalibrated — you\'re locked in'), 2000);
+  } else if (action === 'issue') {
+    addPerformerEvent('alert', 'AUDIO ISSUE reported by performer!');
+    setTimeout(() => addEngEvent('alert', '⚠ PERFORMER AUDIO FLAG — investigating output'), 300);
+    setTimeout(() => addEngEvent('fix', 'Isolating issue: checking gate, compressor, broadcast chain...'), 1000);
+    setTimeout(() => addEngEvent('ok', 'Issue identified: brief dropout on broadcast bus — rerouted'), 2200);
+    setTimeout(() => addPerformerEvent('ok', 'Engineer fixed — audio restored, continue performing'), 3000);
+  }
+}
+
+// ── ENGINEER ACTIONS ──
+function engAction(type) {
+  if (type === 'ok') {
+    addEngEvent('ok', 'Manual check: all outputs nominal — broadcast clean');
+    if (running) addPerformerEvent('ok', 'Engineer confirms: you sound great on air ✓');
+  } else if (type === 'fix') {
+    addEngEvent('fix', 'Applying preventive fix: re-normalizing vocal chain');
+    addEngEvent('fix', 'Gate threshold adjusted, compressor ratio optimized');
+    if (running) setTimeout(() => addPerformerEvent('ok', 'Engineer tuned your sound — slight improvement applied'), 800);
+  } else if (type === 'alert') {
+    addEngEvent('alert', '⚠ ENGINEER ALERT: potential clipping detected on output bus');
+    addEngEvent('fix', 'Pulling back gain -2dB as precaution — monitoring closely');
+    if (running) addPerformerEvent('warn', 'Engineer adjusting levels — brief tweak incoming');
+  }
+}
+
+// ── KNOB CHANGES ──
+function knobChange(type, val) {
+  if (type === 'gain') {
+    const v = parseFloat(val);
+    document.getElementById('k-gain').textContent = (v > 0 ? '+' : '') + v + ' dB';
+    if (running) addEngEvent('fix', 'Gain adjusted to ' + (v > 0 ? '+' : '') + v + 'dB');
+  } else if (type === 'pitch') {
+    document.getElementById('k-pitch').textContent = val + '%';
+    if (running) addEngEvent('fix', 'Pitch correction set to ' + val + '%');
+  } else if (type === 'reverb') {
+    document.getElementById('k-reverb').textContent = val + '%';
+    if (running) addEngEvent('fix', 'Reverb wet mix set to ' + val + '%');
+  }
+}
+
+// ── INIT ──
+initVU();
+setInterval(animateVU, 120);
+setInterval(animateMeters, 400);
+
+// Boot messages
+setTimeout(() => addEngEvent('ok', 'Engineer console initialized — monitoring ready'), 300);
+setTimeout(() => addEngEvent('fix', 'Pitch correction loaded, reverb chain active'), 700);
+setTimeout(() => addEngEvent('ok', 'Broadcast output connected — standing by'), 1100);
+setTimeout(() => addPerformerEvent('info', 'Welcome! Engineer Bun is live and monitoring.'), 1500);
+setTimeout(() => addPerformerEvent('ok', 'Press "Go Live" or "Start My Segment" when ready.'), 2000);
+</script>
+</body>
+</html>
